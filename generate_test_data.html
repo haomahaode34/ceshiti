@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成张三测评数据</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">张三测评数据生成器</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <button id="generate-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 text-lg font-semibold">
+                生成张三的测评数据
+            </button>
+        </div>
+        
+        <div id="status" class="bg-white rounded-lg shadow p-6 mb-6" style="display: none;">
+            <h2 class="text-xl font-semibold mb-4">生成状态</h2>
+            <div id="status-content"></div>
+        </div>
+        
+        <div id="results" class="bg-white rounded-lg shadow p-6" style="display: none;">
+            <h2 class="text-xl font-semibold mb-4">生成结果</h2>
+            <div id="results-content"></div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">操作指南</h2>
+            <div class="space-y-2 text-gray-600">
+                <p>1. 点击上方按钮生成张三的测评数据</p>
+                <p>2. 数据将自动保存到浏览器的localStorage中</p>
+                <p>3. 生成完成后，可以访问以下页面查看结果：</p>
+                <div class="ml-4 space-y-1">
+                    <p>• <a href="./index.html" target="_blank" class="text-blue-600 hover:underline">用户报告页面</a> - 查看张三的测评报告</p>
+                    <p>• <a href="./admin.html" target="_blank" class="text-blue-600 hover:underline">管理后台</a> - 查看所有测评记录</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 张三测评数据生成逻辑
+        function generateZhangsanData() {
+            const employeeName = '张三';
+            const timestamp = new Date().toISOString();
+            const testId = 'zhangsan_' + Date.now();
+            
+            // 张三的能力分布（设计得有明显优势和劣势）
+            const dimensionScores = {
+                '敢为性': 4.2,        // 优势
+                '培养下属': 2.8,      // 劣势
+                '识人用人': 3.5,      // 中等偏上
+                '客户导向': 4.0,      // 优势
+                '信息搜集': 2.5,      // 劣势
+                '结果导向': 3.8,      // 中等偏上
+                '团队合作': 4.1,      // 优势
+                '说服能力': 3.2,      // 中等
+                '系统思维': 2.3,      // 劣势
+                '压力管理': 3.6       // 中等偏上
+            };
+            
+            // 生成200道题的答案
+            const userAnswers = [];
+            const currentQuestions = [];
+            const dimensions = Object.keys(dimensionScores);
+            
+            for (let i = 0; i < 200; i++) {
+                const dimension = dimensions[i % dimensions.length];
+                const targetScore = dimensionScores[dimension];
+                
+                // 添加随机波动
+                const randomFactor = (Math.random() - 0.5) * 1.0;
+                let score = targetScore + randomFactor;
+                score = Math.max(1, Math.min(5, Math.round(score)));
+                
+                userAnswers.push({
+                    questionId: `q_${i + 1}`,
+                    selectedValue: score
+                });
+                
+                currentQuestions.push({
+                    id: `q_${i + 1}`,
+                    dimension: dimension,
+                    text: `关于${dimension}的测试题目 ${i + 1}`,
+                    options: [
+                        { text: '完全不同意', value: 1 },
+                        { text: '不同意', value: 2 },
+                        { text: '中立', value: 3 },
+                        { text: '同意', value: 4 },
+                        { text: '完全同意', value: 5 }
+                    ]
+                });
+            }
+            
+            // 计算报告
+            const report = calculateReport(userAnswers, currentQuestions, dimensionScores);
+            
+            return {
+                employeeName: employeeName,
+                report: report,
+                userAnswers: userAnswers,
+                timestamp: timestamp,
+                testId: testId
+            };
+        }
+        
+        function calculateReport(userAnswers, currentQuestions, dimensionScores) {
+            const dimensionReports = {};
+            let totalScore = 0;
+            
+            // 计算各维度得分
+            Object.entries(dimensionScores).forEach(([dimension, avgScore]) => {
+                const score = parseFloat(avgScore.toFixed(2));
+                totalScore += score * 20; // 每个维度20道题
+                
+                let level = '中等';
+                if (score >= 4.0) level = '优秀';
+                else if (score >= 3.5) level = '良好';
+                else if (score >= 2.5) level = '中等';
+                else level = '待提升';
+                
+                dimensionReports[dimension] = {
+                    score: score.toFixed(2),
+                    level: level,
+                    evaluation: `在${dimension}方面表现${level}，得分为${score.toFixed(2)}分`,
+                    suggestions: getSuggestions(dimension, score)
+                };
+            });
+            
+            const overallAverage = (totalScore / 200).toFixed(2);
+            let overallLevel = '中等';
+            if (overallAverage >= 4.0) overallLevel = '优秀';
+            else if (overallAverage >= 3.5) overallLevel = '良好';
+            else if (overallAverage >= 2.5) overallLevel = '中等';
+            else overallLevel = '待提升';
+            
+            // 计算优势和劣势
+            const sortedDimensions = Object.entries(dimensionScores)
+                .sort((a, b) => b[1] - a[1]);
+            
+            const strengths = sortedDimensions.slice(0, 3).map(([dimension, score]) => ({
+                dimension: dimension,
+                score: score.toFixed(2),
+                description: `${dimension}是您的核心优势，得分${score.toFixed(2)}，在团队中可以发挥重要作用`
+            }));
+            
+            const weaknesses = sortedDimensions.slice(-3).reverse().map(([dimension, score]) => ({
+                dimension: dimension,
+                score: score.toFixed(2),
+                description: `${dimension}需要重点关注和提升，当前得分${score.toFixed(2)}，建议制定专门的改进计划`
+            }));
+            
+            return {
+                totalScore: Math.round(totalScore),
+                overallAverage: overallAverage,
+                overallLevel: overallLevel,
+                dimensionReports: dimensionReports,
+                strengths: strengths,
+                weaknesses: weaknesses,
+                overallSuggestions: [
+                    '继续发挥在敢为性、客户导向和团队合作方面的优势',
+                    '重点提升系统思维、信息搜集和培养下属的能力',
+                    '寻求相关培训和实践机会来弥补短板',
+                    '建立定期的自我评估和反馈机制'
+                ]
+            };
+        }
+        
+        function getSuggestions(dimension, score) {
+            const suggestions = {
+                '敢为性': score >= 3.5 ? '继续保持敢于创新和承担责任的精神' : '培养勇于尝试新事物和承担风险的能力',
+                '培养下属': score >= 3.5 ? '继续发挥指导和培养他人的优势' : '学习如何更好地指导、激励和培养团队成员',
+                '识人用人': score >= 3.5 ? '继续发挥识别和运用人才的能力' : '提升对他人能力的判断和合理分工的技能',
+                '客户导向': score >= 3.5 ? '保持以客户需求为中心的服务理念' : '加强对客户需求的理解和响应能力',
+                '信息搜集': score >= 3.5 ? '继续保持敏锐的信息收集和分析能力' : '提升主动收集、整理和分析信息的技能',
+                '结果导向': score >= 3.5 ? '继续保持对目标达成的专注和执行力' : '加强目标设定和执行跟进的能力',
+                '团队合作': score >= 3.5 ? '继续发挥团队协作和沟通的优势' : '提升与他人协作和团队融入的能力',
+                '说服能力': score >= 3.5 ? '继续发挥影响和说服他人的能力' : '学习更有效的沟通和说服技巧',
+                '系统思维': score >= 3.5 ? '继续保持全局思考和系统分析的优势' : '培养全局观念和系统性思考问题的能力',
+                '压力管理': score >= 3.5 ? '继续保持良好的抗压能力和情绪管理' : '学习更好的压力应对和情绪调节方法'
+            };
+            return suggestions[dimension] || '继续保持和发展这方面的能力';
+        }
+        
+        function saveToLocalStorage(data) {
+            try {
+                let assessments = [];
+                const existing = localStorage.getItem('assessments');
+                if (existing) {
+                    assessments = JSON.parse(existing);
+                }
+                
+                // 移除已存在的张三数据
+                assessments = assessments.filter(item => item.employeeName !== '张三');
+                
+                // 添加新数据
+                assessments.push(data);
+                
+                localStorage.setItem('assessments', JSON.stringify(assessments));
+                return true;
+            } catch (error) {
+                console.error('保存失败:', error);
+                return false;
+            }
+        }
+        
+        function displayResults(data) {
+            const content = `
+                <div class="space-y-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="font-semibold text-green-800 mb-2">✅ 数据生成成功</h3>
+                        <p class="text-green-700">张三的测评数据已成功生成并保存到localStorage</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600">${data.report.totalScore}</div>
+                            <div class="text-sm text-gray-600">总分</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">${data.report.overallAverage}</div>
+                            <div class="text-sm text-gray-600">平均分</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-purple-600">${data.report.overallLevel}</div>
+                            <div class="text-sm text-gray-600">综合等级</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2">各维度得分</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                            ${Object.entries(data.report.dimensionReports).map(([dimension, info]) => `
+                                <div class="bg-white p-2 rounded text-center">
+                                    <div class="font-medium text-xs text-gray-600">${dimension}</div>
+                                    <div class="text-lg font-bold text-indigo-600">${info.score}</div>
+                                    <div class="text-xs text-gray-500">${info.level}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-blue-800">下一步操作</h3>
+                        <div class="space-y-2">
+                            <p><a href="./index.html" target="_blank" class="text-blue-600 hover:underline font-medium">→ 查看张三的完整测评报告</a></p>
+                            <p><a href="./admin.html" target="_blank" class="text-blue-600 hover:underline font-medium">→ 在管理后台查看所有记录</a></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-content').innerHTML = content;
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        // 绑定按钮事件
+        document.getElementById('generate-btn').addEventListener('click', function() {
+            const button = this;
+            button.disabled = true;
+            button.textContent = '生成中...';
+            
+            // 显示状态
+            document.getElementById('status-content').innerHTML = '<p class="text-blue-600">正在生成张三的测评数据...</p>';
+            document.getElementById('status').style.display = 'block';
+            
+            setTimeout(() => {
+                try {
+                    const data = generateZhangsanData();
+                    const saved = saveToLocalStorage(data);
+                    
+                    if (saved) {
+                        document.getElementById('status-content').innerHTML = '<p class="text-green-600">✅ 数据生成并保存成功！</p>';
+                        displayResults(data);
+                    } else {
+                        document.getElementById('status-content').innerHTML = '<p class="text-red-600">❌ 数据保存失败</p>';
+                    }
+                } catch (error) {
+                    document.getElementById('status-content').innerHTML = `<p class="text-red-600">❌ 生成失败: ${error.message}</p>`;
+                } finally {
+                    button.disabled = false;
+                    button.textContent = '重新生成数据';
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

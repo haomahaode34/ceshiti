@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试后台文件分析功能</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .log { background-color: #f8f9fa; padding: 10px; border-left: 4px solid #007bff; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>后台文件分析功能测试</h1>
+    
+    <div class="test-section">
+        <h2>文件分析测试</h2>
+        <p>这个测试将验证admin.js中的文件分析功能是否能正确处理张三的测评文件。</p>
+        
+        <button onclick="testFileReading()">测试文件读取</button>
+        <button onclick="testJSONParsing()">测试JSON解析</button>
+        <button onclick="testDataValidation()">测试数据验证</button>
+        <button onclick="runAllTests()">运行所有测试</button>
+        
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // 从admin.js复制相关的核心功能进行测试
+        
+        // 模拟张三的测评数据
+        const zhangSanData = {
+            "employeeName": "张三",
+            "timestamp": "2024-01-15T10:30:00.000Z",
+            "report": {
+                "timestamp": "2024-01-15T10:35:00.000Z",
+                "totalScore": 890,
+                "totalQuestions": 200,
+                "overallAverage": "4.45",
+                "overallLevel": "优秀",
+                "dimensionScores": {
+                    "敢为性": 4.5,
+                    "培养下属": 4.3,
+                    "识人用人": 4.6,
+                    "客户导向": 4.8,
+                    "信息搜集": 4.4,
+                    "结果导向": 4.7,
+                    "团队合作": 4.2,
+                    "说服能力": 4.9,
+                    "系统思维": 4.1,
+                    "压力管理": 4.0
+                },
+                "dimensionReports": {
+                    "敢为性": { "score": "4.50", "level": "优秀" },
+                    "培养下属": { "score": "4.30", "level": "优秀" }
+                }
+            }
+        };
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function testFileReading() {
+            log('开始测试文件读取功能...', 'info');
+            
+            // 测试文件类型验证
+            const mockFile = {
+                name: '张三_测评报告.txt',
+                type: 'text/plain',
+                size: 12345
+            };
+            
+            // 模拟修复后的文件类型检测逻辑
+            const hasValidExtension = mockFile.name.toLowerCase().endsWith('.txt');
+            const hasValidMimeType = mockFile.type === 'text/plain' || 
+                                   mockFile.type === '' || 
+                                   mockFile.type.startsWith('text/') || 
+                                   mockFile.type === 'application/octet-stream';
+            const isValid = hasValidExtension; // 主要基于扩展名判断
+            
+            if (isValid) {
+                log(`✅ 文件类型验证通过: ${mockFile.name}`, 'success');
+                log(`   - 扩展名检查: ${hasValidExtension ? '通过' : '失败'}`, 'info');
+                log(`   - MIME类型检查: ${hasValidMimeType ? '通过' : '失败'}`, 'info');
+                log(`   - 最终判断: 基于扩展名 (.txt) 判断为有效`, 'success');
+            } else {
+                log(`❌ 文件类型验证失败: ${mockFile.name}`, 'error');
+            }
+        }
+
+        function testJSONParsing() {
+            log('开始测试JSON解析功能...', 'info');
+            
+            try {
+                // 模拟文件内容解析
+                const jsonString = JSON.stringify(zhangSanData, null, 2);
+                log(`原始JSON长度: ${jsonString.length} 字符`, 'info');
+                
+                // 模拟清理过程
+                const cleanContent = jsonString.replace(/^\uFEFF/, '').trim();
+                log(`清理后长度: ${cleanContent.length} 字符`, 'info');
+                
+                // 检查JSON格式
+                if (!cleanContent.startsWith('{') || !cleanContent.endsWith('}')) {
+                    throw new Error('不是有效的JSON格式（不以{}包围）');
+                }
+                
+                // 解析JSON
+                const parsedData = JSON.parse(cleanContent);
+                log('✅ JSON解析成功', 'success');
+                
+                // 检查必要字段
+                if (parsedData.employeeName && parsedData.report) {
+                    log(`✅ 数据验证通过 - 员工姓名: ${parsedData.employeeName}`, 'success');
+                    log(`   - 总分: ${parsedData.report.totalScore}`, 'info');
+                    log(`   - 平均分: ${parsedData.report.overallAverage}`, 'info');
+                    log(`   - 等级: ${parsedData.report.overallLevel}`, 'info');
+                } else {
+                    throw new Error('缺少必要字段: employeeName 或 report');
+                }
+                
+            } catch (error) {
+                log(`❌ JSON解析失败: ${error.message}`, 'error');
+            }
+        }
+
+        function testDataValidation() {
+            log('开始测试数据验证功能...', 'info');
+            
+            // 测试数据结构验证
+            const testCases = [
+                {
+                    name: '完整数据',
+                    data: zhangSanData,
+                    expected: true
+                },
+                {
+                    name: '缺少employeeName',
+                    data: { report: zhangSanData.report },
+                    expected: false
+                },
+                {
+                    name: '缺少report',
+                    data: { employeeName: '张三' },
+                    expected: false
+                },
+                {
+                    name: '空对象',
+                    data: {},
+                    expected: false
+                }
+            ];
+            
+            testCases.forEach(testCase => {
+                const isValid = testCase.data.employeeName && testCase.data.report;
+                const result = isValid === testCase.expected;
+                
+                if (result) {
+                    log(`✅ ${testCase.name}: 验证通过`, 'success');
+                } else {
+                    log(`❌ ${testCase.name}: 验证失败`, 'error');
+                }
+            });
+        }
+
+        function runAllTests() {
+            log('=== 开始运行所有测试 ===', 'info');
+            document.getElementById('test-results').innerHTML = '';
+            
+            setTimeout(() => testFileReading(), 100);
+            setTimeout(() => testJSONParsing(), 500);
+            setTimeout(() => testDataValidation(), 900);
+            setTimeout(() => log('=== 所有测试完成 ===', 'success'), 1300);
+        }
+
+        // 页面加载时运行测试
+        window.addEventListener('load', () => {
+            log('测试页面加载完成，可以手动运行测试或点击"运行所有测试"', 'info');
+        });
+    </script>
+</body>
+</html>

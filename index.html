@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>职业能力测评系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        .question-card {
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .option-button {
+            transition: all 0.2s ease;
+        }
+        .option-button:hover {
+            transform: scale(1.02);
+        }
+        .option-button.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .report-section {
+            animation: slideIn 0.6s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- 保存状态提示 -->
+    <div id="save-message" style="display: none; opacity: 0; transform: translateY(-20px);" class="fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300">
+        <!-- 保存状态消息将动态插入这里 -->
+    </div>
+    
+    <!-- 页面容器 -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- 标题区域 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4">职业能力测评系统</h1>
+            <p class="text-lg text-gray-600">全面评估您的职业核心能力，助力职业发展</p>
+        </div>
+
+        <!-- 登录界面 -->
+        <div id="login-container" class="max-w-md mx-auto">
+            <div class="bg-white rounded-xl shadow-2xl p-8">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">开始测评</h2>
+                    <p class="text-gray-600">请输入您的基本信息</p>
+                </div>
+                
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label for="employee-name" class="block text-sm font-medium text-gray-700 mb-2">员工姓名</label>
+                        <input type="text" id="employee-name" name="employee-name" required 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                               placeholder="请输入您的姓名">
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+                        开始测评
+                    </button>
+                </form>
+                
+                <!-- 文件上传区域 -->
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <div class="text-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">或者上传已完成的测评报告</h3>
+                        <p class="text-sm text-gray-600">如果您已经完成了测评，可以直接上传txt文件查看结果</p>
+                    </div>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <input type="file" id="report-file-input" accept=".txt" class="hidden">
+                        <div id="report-upload-area" class="cursor-pointer">
+                            <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <p class="text-gray-600 text-sm">点击或拖拽上传测评报告.txt文件</p>
+                        </div>
+                        <div id="report-file-info" class="mt-3 hidden">
+                            <p class="text-sm text-green-600" id="report-file-name"></p>
+                            <button id="view-report-btn" class="mt-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm">
+                                查看报告
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loading" class="text-center py-12 hidden">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <p class="mt-4 text-gray-600">正在加载题目...</p>
+        </div>
+
+        <!-- 测评区域 -->
+        <div id="assessment-container" class="hidden">
+            <!-- 进度条 -->
+            <div class="mb-8">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">测评进度</span>
+                    <span id="progress-text" class="text-sm text-gray-600">0/0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progress-bar" class="progress-bar bg-gradient-to-r from-indigo-500 to-purple-600 h-3 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- 题目区域 -->
+            <div id="questions-container" class="space-y-6">
+                <!-- 题目将动态插入这里 -->
+            </div>
+
+            <!-- 提交按钮 -->
+            <div class="text-center mt-8">
+                <button id="submit-btn" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    提交测评
+                </button>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- 引入脚本 -->
+    <script src="./questions.js"></script>
+    <script src="./logic.js"></script>
+    <script>
+
+        let currentQuestions = [];
+        let userAnswers = [];
+        let employeeName = '';
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化登录表单
+            initializeLogin();
+        });
+
+        // 初始化登录表单
+        function initializeLogin() {
+            const loginForm = document.getElementById('login-form');
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const nameInput = document.getElementById('employee-name');
+                const name = nameInput.value.trim();
+                
+                if (!name) {
+                    alert('请输入员工姓名');
+                    return;
+                }
+                
+                // 保存员工姓名
+                employeeName = name;
+                
+                // 隐藏登录界面，显示加载状态
+                document.getElementById('login-container').classList.add('hidden');
+                document.getElementById('loading').classList.remove('hidden');
+                
+                // 确保所有脚本都加载完成后再初始化测评
+                setTimeout(function() {
+                    initializeAssessment();
+                }, 100);
+            });
+        }
+
+        // 初始化测评
+        function initializeAssessment() {
+            try {
+                // 从题库中抽取题目
+                const questionCount = allQuestions.length > 200 ? 200 : allQuestions.length;
+                currentQuestions = drawRandomQuestions(allQuestions, questionCount);
+                
+                if (currentQuestions.length === 0) {
+                    throw new Error('无法加载题目');
+                }
+
+                // 初始化用户答案数组
+                userAnswers = new Array(currentQuestions.length).fill(null);
+
+                // 渲染题目
+                renderQuestions();
+                
+                // 隐藏加载状态，显示测评区域
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('assessment-container').classList.remove('hidden');
+                
+                // 更新进度
+                updateProgress();
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-red-500 text-xl mb-4">加载失败</div>
+                        <p class="text-gray-600">${error.message}</p>
+                        <button onclick="location.reload()" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">重新加载</button>
+                    </div>
+                `;
+            }
+        }
+
+        // 渲染题目
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            currentQuestions.forEach((question, index) => {
+                const questionCard = document.createElement('div');
+                questionCard.className = 'question-card bg-white rounded-lg shadow-md p-6 fade-in';
+                questionCard.innerHTML = `
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm text-indigo-600 font-medium">${question.dimension}</span>
+                            <span class="text-sm text-gray-500">第 ${index + 1} 题</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-800">${question.text}</h3>
+                    </div>
+                    <div class="space-y-2">
+                        ${question.options.map((option, optionIndex) => `
+                            <button class="option-button w-full text-left p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all" 
+                                    data-question="${index}" data-value="${option.value}">
+                                <span class="font-medium text-gray-700">${String.fromCharCode(65 + optionIndex)}.</span>
+                                <span class="ml-2 text-gray-800">${option.text}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(questionCard);
+            });
+
+            // 绑定选项点击事件
+            container.addEventListener('click', handleOptionClick);
+        }
+
+        // 处理选项点击
+        function handleOptionClick(event) {
+            if (!event.target.closest('.option-button')) return;
+            
+            const button = event.target.closest('.option-button');
+            const questionIndex = parseInt(button.dataset.question);
+            const value = parseInt(button.dataset.value);
+            
+            // 移除同一题目其他选项的选中状态
+            const questionCard = button.closest('.question-card');
+            questionCard.querySelectorAll('.option-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // 添加当前选项的选中状态
+            button.classList.add('selected');
+            
+            // 保存用户答案
+            userAnswers[questionIndex] = {
+                questionId: currentQuestions[questionIndex].id,
+                selectedValue: value
+            };
+            
+            // 更新进度
+            updateProgress();
+        }
+
+        // 更新进度
+        function updateProgress() {
+            const answeredCount = userAnswers.filter(answer => answer !== null).length;
+            const totalCount = currentQuestions.length;
+            const percentage = (answeredCount / totalCount) * 100;
+            
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-text').textContent = `${answeredCount}/${totalCount}`;
+            
+            // 更新提交按钮状态
+            const submitBtn = document.getElementById('submit-btn');
+            if (answeredCount === totalCount) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交测评';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = `还需回答 ${totalCount - answeredCount} 题`;
+            }
+        }
+
+        // 提交测评
+document.getElementById('submit-btn').addEventListener('click', async function() {
+    try {
+        // 检查是否所有题目都已回答
+        if (userAnswers.some(answer => answer === null)) {
+            alert('请回答所有题目后再提交');
+            return;
+        }
+
+        // 禁用提交按钮，显示加载状态
+        const submitBtn = this;
+        submitBtn.disabled = true;
+        submitBtn.textContent = '正在生成报告...';
+
+        // 1. 收集所有用户答案
+        const collectedAnswers = userAnswers.reduce((obj, answer, index) => {
+            if (answer !== null) {
+                obj[`q${index + 1}`] = answer.selectedValue;
+            }
+            return obj;
+        }, {});
+
+        // 2. 调用calculateAndGenerateReport函数生成报告对象
+        const report = calculateAndGenerateReport(userAnswers, currentQuestions);
+
+        // 3. 创建包含员工姓名和完整报告对象的JSON数据
+        const reportData = {
+            employeeName: employeeName,
+            timestamp: new Date().toISOString(),
+            userAnswers: collectedAnswers,
+            report: report
+        };
+
+        // 4. 将JSON数据转换为字符串
+        const reportString = JSON.stringify(reportData, null, 2);
+
+        // 5. 创建下载功能
+        const blob = new Blob([reportString], { type: 'text/plain;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${employeeName}_测评报告.txt`;
+        
+        // 触发下载
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        // 6. 显示成功提示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-8 py-6 rounded-lg shadow-2xl z-50 text-center max-w-md';
+        alertDiv.innerHTML = `
+            <div class="text-xl font-bold mb-2">✅ 测评完成！</div>
+            <div class="text-sm mb-4">报告文件已生成并下载，请将此文件发送给招聘负责人。</div>
+            <button onclick="location.reload()" class="bg-white text-green-500 px-4 py-2 rounded font-semibold hover:bg-gray-100">重新测评</button>
+        `;
+        document.body.appendChild(alertDiv);
+
+        // 7. 隐藏测评区域
+        document.getElementById('assessment-container').classList.add('hidden');
+
+    } catch (error) {
+        console.error('生成报告失败:', error);
+        alert('提交时出现错误，请刷新页面重试。');
+    } finally {
+        // 恢复提交按钮状态
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = false;
+        submitBtn.textContent = '提交测评';
+    }
+});
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动测评测试 - 张三</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">自动测评测试 - 张三</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">测试进度</h2>
+            <div id="status" class="text-gray-600">准备开始测试...</div>
+            <div id="progress" class="w-full bg-gray-200 rounded-full h-2 mt-4">
+                <div id="progress-bar" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">操作控制</h2>
+            <button id="start-test" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 mr-4">开始自动测评</button>
+            <button id="view-report" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 mr-4" disabled>查看报告</button>
+            <button id="view-admin" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700" disabled>查看后台</button>
+        </div>
+        
+        <div id="results" class="bg-white rounded-lg shadow p-6" style="display: none;">
+            <h2 class="text-xl font-semibold mb-4">测试结果</h2>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <!-- 引入必要的脚本 -->
+    <script src="./questions.js"></script>
+    <script src="./logic.js"></script>
+    
+    <script>
+        let testReport = null;
+        
+        document.getElementById('start-test').addEventListener('click', async function() {
+            const button = this;
+            button.disabled = true;
+            button.textContent = '测试进行中...';
+            
+            try {
+                await runAutoTest();
+                document.getElementById('view-report').disabled = false;
+                document.getElementById('view-admin').disabled = false;
+                button.textContent = '测试完成';
+            } catch (error) {
+                console.error('测试失败:', error);
+                updateStatus('测试失败: ' + error.message, 'error');
+                button.disabled = false;
+                button.textContent = '重新开始测试';
+            }
+        });
+        
+        document.getElementById('view-report').addEventListener('click', function() {
+            window.open('./index.html', '_blank');
+        });
+        
+        document.getElementById('view-admin').addEventListener('click', function() {
+            window.open('./admin.html', '_blank');
+        });
+        
+        async function runAutoTest() {
+            updateStatus('步骤 1/5: 初始化测评系统...', 'info');
+            updateProgress(10);
+            
+            // 模拟登录
+            const employeeName = '张三';
+            
+            updateStatus('步骤 2/5: 加载题目...', 'info');
+            updateProgress(20);
+            
+            // 获取题目
+            if (typeof allQuestions === 'undefined') {
+                throw new Error('题库未加载');
+            }
+            
+            const questionCount = Math.min(allQuestions.length, 200);
+            const currentQuestions = drawRandomQuestions(allQuestions, questionCount);
+            
+            if (currentQuestions.length === 0) {
+                throw new Error('无法获取题目');
+            }
+            
+            updateStatus(`步骤 3/5: 自动回答 ${currentQuestions.length} 道题目...`, 'info');
+            updateProgress(40);
+            
+            // 自动生成答案（随机选择，但倾向于中等分数）
+            const userAnswers = currentQuestions.map((question, index) => {
+                // 为了得到更真实的结果，使用正态分布随机选择答案
+                // 倾向于选择中等分数的选项
+                const options = question.options;
+                const weights = options.map(opt => {
+                    // 给中等分数更高的权重
+                    if (opt.value >= 2 && opt.value <= 4) return 3;
+                    if (opt.value === 1 || opt.value === 5) return 2;
+                    return 1;
+                });
+                
+                const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+                let random = Math.random() * totalWeight;
+                
+                for (let i = 0; i < options.length; i++) {
+                    random -= weights[i];
+                    if (random <= 0) {
+                        return {
+                            questionId: question.id,
+                            selectedValue: options[i].value
+                        };
+                    }
+                }
+                
+                // 备用：随机选择
+                const randomIndex = Math.floor(Math.random() * options.length);
+                return {
+                    questionId: question.id,
+                    selectedValue: options[randomIndex].value
+                };
+            });
+            
+            updateStatus('步骤 4/5: 生成测评报告...', 'info');
+            updateProgress(70);
+            
+            // 生成报告
+            if (typeof calculateAndGenerateReport === 'undefined') {
+                throw new Error('报告生成函数未加载');
+            }
+            
+            const report = calculateAndGenerateReport(userAnswers, currentQuestions);
+            testReport = report;
+            
+            updateStatus('步骤 5/5: 保存测评数据...', 'info');
+            updateProgress(90);
+            
+            // 保存到localStorage
+            const assessmentData = {
+                employeeName: employeeName,
+                report: report,
+                userAnswers: userAnswers,
+                timestamp: new Date().toISOString(),
+                testId: 'auto_test_' + Date.now()
+            };
+            
+            // 获取现有数据
+            let assessments = [];
+            try {
+                const existingData = localStorage.getItem('assessments');
+                if (existingData) {
+                    assessments = JSON.parse(existingData);
+                }
+            } catch (e) {
+                console.warn('读取现有数据失败:', e);
+            }
+            
+            // 添加新数据
+            assessments.push(assessmentData);
+            
+            // 保存数据
+            localStorage.setItem('assessments', JSON.stringify(assessments));
+            
+            updateStatus('测试完成！数据已保存到本地存储。', 'success');
+            updateProgress(100);
+            
+            // 显示结果
+            displayTestResults(report, assessmentData);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            
+            // 移除所有状态类
+            statusEl.classList.remove('text-blue-600', 'text-green-600', 'text-red-600', 'text-gray-600');
+            
+            // 添加对应状态类
+            switch(type) {
+                case 'success':
+                    statusEl.classList.add('text-green-600');
+                    break;
+                case 'error':
+                    statusEl.classList.add('text-red-600');
+                    break;
+                case 'info':
+                    statusEl.classList.add('text-blue-600');
+                    break;
+                default:
+                    statusEl.classList.add('text-gray-600');
+            }
+        }
+        
+        function updateProgress(percentage) {
+            document.getElementById('progress-bar').style.width = percentage + '%';
+        }
+        
+        function displayTestResults(report, assessmentData) {
+            const resultsEl = document.getElementById('test-results');
+            
+            resultsEl.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600">${report.totalScore}</div>
+                            <div class="text-sm text-gray-600">总分</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">${report.overallAverage}</div>
+                            <div class="text-sm text-gray-600">平均分</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-purple-600">${report.overallLevel}</div>
+                            <div class="text-sm text-gray-600">综合等级</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2">各维度得分</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                            ${Object.entries(report.dimensionReports).map(([dimension, data]) => `
+                                <div class="bg-white p-2 rounded text-center">
+                                    <div class="font-medium text-xs text-gray-600">${dimension}</div>
+                                    <div class="text-lg font-bold text-indigo-600">${data.score}</div>
+                                    <div class="text-xs text-gray-500">${data.level}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-green-800">优势能力 (前3名)</h3>
+                        <div class="space-y-2">
+                            ${report.strengths.map(strength => `
+                                <div class="flex items-center">
+                                    <span class="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2">${strength.score}</span>
+                                    <span class="font-medium">${strength.dimension}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-orange-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-orange-800">待提升领域 (后3名)</h3>
+                        <div class="space-y-2">
+                            ${report.weaknesses.map(weakness => `
+                                <div class="flex items-center">
+                                    <span class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2">${weakness.score}</span>
+                                    <span class="font-medium">${weakness.dimension}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h3 class="font-semibold mb-2 text-blue-800">数据保存信息</h3>
+                        <div class="text-sm text-gray-600">
+                            <p><strong>员工姓名:</strong> ${assessmentData.employeeName}</p>
+                            <p><strong>测试时间:</strong> ${new Date(assessmentData.timestamp).toLocaleString('zh-CN')}</p>
+                            <p><strong>测试ID:</strong> ${assessmentData.testId}</p>
+                            <p><strong>答题数量:</strong> ${assessmentData.userAnswers.length} 题</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        // 页面加载时检查依赖
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (typeof allQuestions === 'undefined') {
+                    updateStatus('警告: 题库未加载，请确保 questions.js 文件存在', 'error');
+                } else if (typeof calculateAndGenerateReport === 'undefined') {
+                    updateStatus('警告: 计算逻辑未加载，请确保 logic.js 文件存在', 'error');
+                } else {
+                    updateStatus(`系统就绪，题库包含 ${allQuestions.length} 道题目`, 'success');
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

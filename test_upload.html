@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">文件上传测试</h1>
+        
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <input type="file" id="file-input" accept=".txt" multiple class="hidden">
+            <div id="upload-area" class="cursor-pointer">
+                <p class="text-gray-600 mb-2">点击或拖拽文件到此区域</p>
+                <p class="text-sm text-gray-500">支持 .txt 格式的文件</p>
+            </div>
+        </div>
+        
+        <div id="file-list" class="mt-4 hidden">
+            <p class="text-sm text-gray-600 mb-2">已选择的文件：</p>
+            <ul id="files" class="text-sm text-gray-800"></ul>
+            <button id="test-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+                测试解析
+            </button>
+        </div>
+        
+        <div id="results" class="mt-4"></div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const uploadArea = document.getElementById('upload-area');
+        const fileList = document.getElementById('file-list');
+        const filesContainer = document.getElementById('files');
+        const testBtn = document.getElementById('test-btn');
+        const resultsContainer = document.getElementById('results');
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 文件选择变化
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('border-blue-400', 'bg-blue-50');
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('border-blue-400', 'bg-blue-50');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('border-blue-400', 'bg-blue-50');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // 处理文件
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            filesContainer.innerHTML = '';
+            
+            console.log('处理文件:', files.length);
+            
+            for (let file of files) {
+                console.log(`文件: ${file.name}, 类型: ${file.type}, 大小: ${file.size}`);
+                
+                const li = document.createElement('li');
+                li.textContent = `${file.name} (类型: ${file.type}, 大小: ${file.size})`;
+                li.className = file.name.endsWith('.txt') ? 'text-green-600' : 'text-red-600';
+                filesContainer.appendChild(li);
+            }
+            
+            fileList.classList.remove('hidden');
+        }
+
+        // 测试解析
+        testBtn.addEventListener('click', async () => {
+            const files = fileInput.files;
+            if (files.length === 0) return;
+
+            resultsContainer.innerHTML = '<p class="text-blue-600">正在测试...</p>';
+
+            try {
+                for (let file of files) {
+                    console.log(`开始测试文件: ${file.name}`);
+                    
+                    const content = await readFileContent(file);
+                    console.log(`文件内容长度: ${content.length}`);
+                    console.log(`文件内容开头: ${content.substring(0, 100)}`);
+                    
+                    try {
+                        const data = JSON.parse(content);
+                        console.log(`JSON解析成功: ${file.name}`);
+                        console.log(`employeeName: ${data.employeeName}`);
+                        console.log(`report 存在: ${!!data.report}`);
+                        
+                        resultsContainer.innerHTML += `
+                            <div class="mt-2 p-3 bg-green-100 border border-green-300 rounded">
+                                <p class="text-green-800 font-semibold">${file.name} - 解析成功</p>
+                                <p class="text-sm">员工: ${data.employeeName}</p>
+                                <p class="text-sm">平均分: ${data.report?.overallAverage || 'N/A'}</p>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.error(`JSON解析失败: ${file.name}`, error);
+                        resultsContainer.innerHTML += `
+                            <div class="mt-2 p-3 bg-red-100 border border-red-300 rounded">
+                                <p class="text-red-800 font-semibold">${file.name} - 解析失败</p>
+                                <p class="text-sm">${error.message}</p>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('测试失败:', error);
+                resultsContainer.innerHTML = `<p class="text-red-600">测试失败: ${error.message}</p>`;
+            }
+        });
+
+        // 读取文件内容
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file, 'utf-8');
+            });
+        }
+    </script>
+</body>
+</html>

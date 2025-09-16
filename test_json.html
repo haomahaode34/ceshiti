@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON测试</title>
+</head>
+<body>
+    <h1>JSON文件验证测试</h1>
+    <button onclick="testFile('张三_测评报告.txt')">测试张三文件</button>
+    <button onclick="testFile('李四_测评报告.txt')">测试李四文件</button>
+    <button onclick="testFile('王五_测评报告.txt')">测试王五文件</button>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        async function testFile(filename) {
+            try {
+                const response = await fetch(filename);
+                const text = await response.text();
+                
+                console.log(`文件 ${filename} 内容长度:`, text.length);
+                console.log(`文件开头:`, text.substring(0, 100));
+                
+                // 尝试解析JSON
+                const data = JSON.parse(text);
+                console.log('JSON解析成功!');
+                console.log('员工姓名:', data.employeeName);
+                console.log('报告存在:', !!data.report);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>✅ ${filename} 验证成功</h3>
+                    <p>员工姓名: ${data.employeeName}</p>
+                    <p>总分: ${data.report?.totalScore}</p>
+                    <p>平均分: ${data.report?.overallAverage}</p>
+                    <p>等级: ${data.report?.overallLevel}</p>
+                `;
+                
+            } catch (error) {
+                console.error(`验证文件 ${filename} 失败:`, error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ ${filename} 验证失败</h3>
+                    <p>错误: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

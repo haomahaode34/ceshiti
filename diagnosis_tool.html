@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台文件分析诊断工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { background-color: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .info { background-color: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .warning { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        button { padding: 12px 24px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; font-size: 14px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-warning { background-color: #ffc107; color: #212529; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .log { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0; font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap; }
+        .file-info { background-color: #e9ecef; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center; }
+        .stat-number { font-size: 2em; font-weight: bold; color: #007bff; }
+        .json-preview { max-height: 200px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 后台文件分析诊断工具</h1>
+        <p>这个工具将帮助您诊断和测试后台文件分析功能，特别是张三测评文件的问题。</p>
+
+        <div class="section">
+            <h2>📁 文件上传测试</h2>
+            <input type="file" id="test-file" accept=".txt" multiple>
+            <button class="btn-primary" onclick="diagnoseFile()">开始诊断</button>
+            <button class="btn-success" onclick="testWithZhangSan()">使用张三数据测试</button>
+            <button class="btn-warning" onclick="clearResults()">清空结果</button>
+        </div>
+
+        <div class="section">
+            <h2>📊 诊断统计</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-files">0</div>
+                    <div>总文件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="valid-files">0</div>
+                    <div>有效文件</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="parsed-files">0</div>
+                    <div>解析成功</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="error-files">0</div>
+                    <div>解析失败</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📋 诊断结果</h2>
+            <div id="diagnosis-results"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔍 详细日志</h2>
+            <div id="detailed-logs"></div>
+        </div>
+    </div>
+
+    <script>
+        let totalFiles = 0;
+        let validFiles = 0;
+        let parsedFiles = 0;
+        let errorFiles = 0;
+
+        // 张三的测试数据
+        const zhangSanTestData = {
+            "employeeName": "张三",
+            "timestamp": "2024-01-15T10:30:00.000Z",
+            "report": {
+                "timestamp": "2024-01-15T10:35:00.000Z",
+                "totalScore": 890,
+                "totalQuestions": 200,
+                "overallAverage": "4.45",
+                "overallLevel": "优秀",
+                "dimensionScores": {
+                    "敢为性": 4.5,
+                    "培养下属": 4.3,
+                    "识人用人": 4.6,
+                    "客户导向": 4.8,
+                    "信息搜集": 4.4,
+                    "结果导向": 4.7,
+                    "团队合作": 4.2,
+                    "说服能力": 4.9,
+                    "系统思维": 4.1,
+                    "压力管理": 4.0
+                }
+            }
+        };
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('diagnosis-results');
+            const logs = document.getElementById('detailed-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // 添加到结果区域
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            results.appendChild(div);
+            
+            // 添加到详细日志
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log';
+            logDiv.textContent = `[${timestamp}] ${message}`;
+            logs.appendChild(logDiv);
+            
+            // 滚动到底部
+            results.scrollTop = results.scrollHeight;
+            logs.scrollTop = logs.scrollHeight;
+            
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function updateStats() {
+            document.getElementById('total-files').textContent = totalFiles;
+            document.getElementById('valid-files').textContent = validFiles;
+            document.getElementById('parsed-files').textContent = parsedFiles;
+            document.getElementById('error-files').textContent = errorFiles;
+        }
+
+        async function diagnoseFile() {
+            const fileInput = document.getElementById('test-file');
+            const files = fileInput.files;
+            
+            if (files.length === 0) {
+                log('请选择至少一个文件进行测试', 'warning');
+                return;
+            }
+            
+            log('=== 开始文件诊断 ===', 'info');
+            totalFiles = files.length;
+            validFiles = 0;
+            parsedFiles = 0;
+            errorFiles = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                await diagnoseIndividualFile(file, i + 1);
+            }
+            
+            updateStats();
+            log('=== 诊断完成 ===', 'success');
+            generateSummaryReport();
+        }
+
+        async function diagnoseIndividualFile(file, index) {
+            log(`\n--- 诊断文件 ${index}: ${file.name} ---`, 'info');
+            
+            // 1. 基本文件信息
+            const fileInfo = {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                lastModified: new Date(file.lastModified).toLocaleString()
+            };
+            
+            log(`文件信息: ${JSON.stringify(fileInfo, null, 2)}`, 'info');
+            
+            // 2. 文件类型验证（使用修复后的逻辑）
+            const hasValidExtension = file.name.toLowerCase().endsWith('.txt');
+            const hasValidMimeType = file.type === 'text/plain' || 
+                                   file.type === '' || 
+                                   file.type.startsWith('text/') || 
+                                   file.type === 'application/octet-stream';
+            const isFileValid = hasValidExtension; // 主要基于扩展名
+            
+            if (isFileValid) {
+                validFiles++;
+                log(`✅ 文件类型验证通过`, 'success');
+                log(`   - 扩展名检查: ${hasValidExtension ? '通过' : '失败'}`, 'info');
+                log(`   - MIME类型: ${file.type || '(空)'} - ${hasValidMimeType ? '兼容' : '不兼容'}`, 'info');
+            } else {
+                errorFiles++;
+                log(`❌ 文件类型验证失败`, 'error');
+                return;
+            }
+            
+            // 3. 读取文件内容
+            try {
+                log('正在读取文件内容...', 'info');
+                const content = await readFileContent(file);
+                log(`文件读取成功，内容长度: ${content.length} 字符`, 'success');
+                
+                // 显示内容预览
+                const preview = content.length > 200 ? content.substring(0, 200) + '...' : content;
+                log(`内容预览:\n${preview}`, 'info');
+                
+                // 4. 内容清理
+                const cleanContent = content.replace(/^\uFEFF/, '').trim();
+                if (cleanContent.length !== content.length) {
+                    log(`内容已清理，去除了 ${content.length - cleanContent.length} 个特殊字符`, 'info');
+                }
+                
+                // 5. JSON格式检查
+                if (!cleanContent) {
+                    throw new Error('文件内容为空');
+                }
+                
+                if (!cleanContent.startsWith('{') || !cleanContent.endsWith('}')) {
+                    throw new Error(`不是有效的JSON格式。开头: "${cleanContent.substring(0, 10)}", 结尾: "${cleanContent.substring(cleanContent.length - 10)}"`);
+                }
+                
+                // 6. JSON解析
+                log('正在解析JSON...', 'info');
+                const data = JSON.parse(cleanContent);
+                parsedFiles++;
+                log('✅ JSON解析成功', 'success');
+                
+                // 7. 数据结构验证
+                if (data.employeeName && data.report) {
+                    log(`✅ 数据结构验证通过`, 'success');
+                    log(`   - 员工姓名: ${data.employeeName}`, 'info');
+                    log(`   - 总分: ${data.report.totalScore || '未知'}`, 'info');
+                    log(`   - 平均分: ${data.report.overallAverage || '未知'}`, 'info');
+                    log(`   - 等级: ${data.report.overallLevel || '未知'}`, 'info');
+                    
+                    // 检查维度数据
+                    if (data.report.dimensionScores) {
+                        const dimensionCount = Object.keys(data.report.dimensionScores).length;
+                        log(`   - 维度数量: ${dimensionCount}`, 'info');
+                    }
+                    
+                    if (data.report.dimensionReports) {
+                        const reportCount = Object.keys(data.report.dimensionReports).length;
+                        log(`   - 维度报告数量: ${reportCount}`, 'info');
+                    }
+                    
+                } else {
+                    errorFiles++;
+                    const missing = [];
+                    if (!data.employeeName) missing.push('employeeName');
+                    if (!data.report) missing.push('report');
+                    log(`❌ 数据结构验证失败，缺少字段: ${missing.join(', ')}`, 'error');
+                }
+                
+            } catch (error) {
+                errorFiles++;
+                log(`❌ 处理文件时出错: ${error.message}`, 'error');
+                
+                if (error instanceof SyntaxError) {
+                    log('这是JSON语法错误，可能的原因:', 'error');
+                    log('1. 文件不是有效的JSON格式', 'error');
+                    log('2. 文件包含特殊字符或编码问题', 'error');
+                    log('3. JSON格式不正确（缺少括号、逗号等）', 'error');
+                }
+            }
+        }
+
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error(`无法读取文件: ${e.target.error}`));
+                reader.readAsText(file, 'utf-8');
+            });
+        }
+
+        async function testWithZhangSan() {
+            log('=== 使用张三测试数据进行模拟测试 ===', 'info');
+            
+            totalFiles = 1;
+            validFiles = 0;
+            parsedFiles = 0;
+            errorFiles = 0;
+            
+            try {
+                // 模拟文件对象
+                const mockFile = {
+                    name: '张三_测评报告.txt',
+                    type: 'text/plain',
+                    size: JSON.stringify(zhangSanTestData).length
+                };
+                
+                log(`模拟文件信息: ${JSON.stringify(mockFile, null, 2)}`, 'info');
+                
+                // 文件类型验证
+                const hasValidExtension = mockFile.name.toLowerCase().endsWith('.txt');
+                const isFileValid = hasValidExtension;
+                
+                if (isFileValid) {
+                    validFiles++;
+                    log('✅ 文件类型验证通过', 'success');
+                } else {
+                    errorFiles++;
+                    log('❌ 文件类型验证失败', 'error');
+                    return;
+                }
+                
+                // JSON内容测试
+                const jsonContent = JSON.stringify(zhangSanTestData, null, 2);
+                log(`生成的JSON内容长度: ${jsonContent.length} 字符`, 'info');
+                
+                // JSON解析测试
+                const parsedData = JSON.parse(jsonContent);
+                parsedFiles++;
+                log('✅ JSON解析成功', 'success');
+                
+                // 数据验证
+                if (parsedData.employeeName && parsedData.report) {
+                    log('✅ 数据结构验证通过', 'success');
+                    log(`   - 员工姓名: ${parsedData.employeeName}`, 'info');
+                    log(`   - 总分: ${parsedData.report.totalScore}`, 'info');
+                    log(`   - 平均分: ${parsedData.report.overallAverage}`, 'info');
+                    log(`   - 等级: ${parsedData.report.overallLevel}`, 'info');
+                    
+                    const dimensionCount = Object.keys(parsedData.report.dimensionScores || {}).length;
+                    log(`   - 维度数量: ${dimensionCount}`, 'info');
+                    
+                    // 显示JSON预览
+                    const preview = document.createElement('div');
+                    preview.className = 'json-preview';
+                    preview.textContent = jsonContent;
+                    
+                    const container = document.createElement('div');
+                    container.innerHTML = '<h4>JSON数据预览:</h4>';
+                    container.appendChild(preview);
+                    
+                    document.getElementById('diagnosis-results').appendChild(container);
+                    
+                } else {
+                    errorFiles++;
+                    log('❌ 数据结构验证失败', 'error');
+                }
+                
+                updateStats();
+                log('=== 张三数据测试完成 ===', 'success');
+                generateSummaryReport();
+                
+            } catch (error) {
+                errorFiles++;
+                log(`❌ 张三数据测试失败: ${error.message}`, 'error');
+                updateStats();
+            }
+        }
+
+        function generateSummaryReport() {
+            log('\n=== 诊断总结报告 ===', 'info');
+            log(`总文件数: ${totalFiles}`, 'info');
+            log(`有效文件: ${validFiles}`, validFiles > 0 ? 'success' : 'warning');
+            log(`解析成功: ${parsedFiles}`, parsedFiles > 0 ? 'success' : 'warning');
+            log(`解析失败: ${errorFiles}`, errorFiles > 0 ? 'error' : 'success');
+            
+            if (parsedFiles === totalFiles && totalFiles > 0) {
+                log('🎉 所有文件都处理成功！后台分析功能应该能正常工作。', 'success');
+            } else if (errorFiles > 0) {
+                log('⚠️ 有文件处理失败，请检查文件格式或上面的错误信息。', 'warning');
+            }
+            
+            // 提供修复建议
+            if (errorFiles > 0) {
+                log('\n=== 修复建议 ===', 'info');
+                log('1. 确保文件扩展名为 .txt', 'info');
+                log('2. 确保文件内容是有效的JSON格式', 'info');
+                log('3. 确保JSON包含 employeeName 和 report 字段', 'info');
+                log('4. 检查文件编码是否为UTF-8', 'info');
+                log('5. 确保JSON格式正确（括号、逗号、引号等）', 'info');
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('diagnosis-results').innerHTML = '';
+            document.getElementById('detailed-logs').innerHTML = '';
+            totalFiles = 0;
+            validFiles = 0;
+            parsedFiles = 0;
+            errorFiles = 0;
+            updateStats();
+            log('结果已清空', 'info');
+        }
+
+        // 页面加载时的提示
+        window.addEventListener('load', () => {
+            log('🔧 诊断工具已加载完成', 'success');
+            log('请选择文件进行诊断，或点击"使用张三数据测试"进行模拟测试', 'info');
+            updateStats();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传流程测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .error { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .info { background-color: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .warning { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .log { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+        .upload-area { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; border-radius: 5px; cursor: pointer; }
+        .upload-area:hover { border-color: #007bff; background-color: #f8f9fa; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 文件上传流程测试</h1>
+    <p>这个测试页面专门用于验证文件上传流程是否正常工作。</p>
+
+    <div class="section">
+        <h2>📁 文件上传测试区域</h2>
+        
+        <!-- 模拟admin.html的上传区域 -->
+        <input type="file" id="file-input" accept=".txt" multiple style="display: none;">
+        <div id="upload-area" class="upload-area">
+            <p>📂 点击或拖拽文件到此区域</p>
+            <p>支持 .txt 格式的测评报告文件（可多选）</p>
+        </div>
+        
+        <div id="file-list" style="display: none;">
+            <p><strong>已选择的文件：</strong></p>
+            <ul id="files"></ul>
+            <button id="upload-btn" class="btn-primary" style="display: none;">开始分析</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🧪 手动测试按钮</h2>
+        <button class="btn-success" onclick="testFileUploadFlow()">测试文件上传流程</button>
+        <button class="btn-primary" onclick="simulateFileSelection()">模拟文件选择</button>
+        <button onclick="clearResults()">清空结果</button>
+    </div>
+
+    <div class="section">
+        <h2>📋 测试结果</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        let currentSelectedFiles = null;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+            console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
+        }
+
+        // 初始化文件上传（复制admin.js的逻辑）
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('file-input');
+            const uploadArea = document.getElementById('upload-area');
+            const fileList = document.getElementById('file-list');
+            const filesContainer = document.getElementById('files');
+            const uploadBtn = document.getElementById('upload-btn');
+
+            log('正在初始化文件上传功能...', 'info');
+
+            // 点击上传区域
+            uploadArea.addEventListener('click', () => {
+                log('上传区域被点击，打开文件选择器', 'info');
+                fileInput.click();
+            });
+
+            // 文件选择变化
+            fileInput.addEventListener('change', (e) => {
+                log('文件输入框change事件触发', 'info');
+                handleFiles(e.target.files);
+            });
+
+            // 拖拽上传
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#007bff';
+                uploadArea.style.backgroundColor = '#f8f9fa';
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#ccc';
+                uploadArea.style.backgroundColor = '';
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#ccc';
+                uploadArea.style.backgroundColor = '';
+                
+                const droppedFiles = e.dataTransfer.files;
+                log(`拖拽文件事件触发，文件数量: ${droppedFiles.length}`, 'info');
+                
+                // 保存拖拽的文件
+                currentSelectedFiles = droppedFiles;
+                handleFiles(droppedFiles);
+            });
+
+            // 开始分析
+            uploadBtn.addEventListener('click', () => {
+                log('=== 分析按钮被点击 ===', 'info');
+                
+                // 优先使用保存的文件，如果没有则使用fileInput.files
+                const filesToAnalyze = currentSelectedFiles || fileInput.files;
+                
+                log(`当前文件状态:`, 'info');
+                log(`- currentSelectedFiles: ${currentSelectedFiles ? currentSelectedFiles.length : 'null'}`, 'info');
+                log(`- fileInput.files: ${fileInput.files ? fileInput.files.length : 'null'}`, 'info');
+                log(`- filesToAnalyze: ${filesToAnalyze ? filesToAnalyze.length : 'null'}`, 'info');
+                
+                if (!filesToAnalyze || filesToAnalyze.length === 0) {
+                    log('❌ 没有选择文件或文件列表为空', 'error');
+                    return;
+                }
+                
+                // 这里应该调用analyzeFiles，但我们只是测试流程
+                testAnalyzeFiles(filesToAnalyze);
+            });
+
+            log('文件上传功能初始化完成', 'success');
+        }
+
+        // 处理文件（复制admin.js的逻辑）
+        function handleFiles(files) {
+            log('=== handleFiles 被调用 ===', 'info');
+            log(`接收到的files参数: ${files}`, 'info');
+            log(`files类型: ${Object.prototype.toString.call(files)}`, 'info');
+            log(`files.length: ${files.length}`, 'info');
+            
+            // 保存当前选择的文件
+            currentSelectedFiles = files;
+            log('文件已保存到currentSelectedFiles', 'success');
+            
+            if (files.length === 0) {
+                log('文件数量为0，返回', 'warning');
+                return;
+            }
+
+            const filesContainer = document.getElementById('files');
+            const fileList = document.getElementById('file-list');
+            
+            filesContainer.innerHTML = '';
+            
+            log(`开始处理文件列表，文件数量: ${files.length}`, 'info');
+            
+            let validFileCount = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                log(`文件 ${i + 1}: ${file.name} (${file.size} 字节, ${file.type || '无类型'})`, 'info');
+                
+                // 检查文件扩展名（主要判断依据）
+                const hasValidExtension = file.name.toLowerCase().endsWith('.txt');
+                
+                const li = document.createElement('li');
+                
+                if (hasValidExtension) {
+                    li.textContent = `${file.name} (${file.size} 字节)`;
+                    li.style.color = 'green';
+                    validFileCount++;
+                    log(`✅ 文件 ${file.name} 被认为是有效的`, 'success');
+                } else {
+                    li.textContent = `${file.name} (不支持的格式，仅支持.txt文件)`;
+                    li.style.color = 'red';
+                    log(`❌ 文件 ${file.name} 被认为是无效的`, 'error');
+                }
+                
+                filesContainer.appendChild(li);
+            }
+            
+            log(`有效文件数量: ${validFileCount}`, 'info');
+            
+            fileList.style.display = 'block';
+            
+            // 如果有有效文件，显示分析按钮
+            const uploadBtn = document.getElementById('upload-btn');
+            if (validFileCount > 0) {
+                uploadBtn.style.display = 'block';
+                uploadBtn.textContent = `开始分析 (${validFileCount} 个文件)`;
+                log('分析按钮已显示', 'success');
+            } else {
+                uploadBtn.style.display = 'none';
+                log('没有有效文件，隐藏分析按钮', 'warning');
+            }
+        }
+
+        // 测试分析文件函数
+        function testAnalyzeFiles(files) {
+            log('=== testAnalyzeFiles 函数被调用 ===', 'info');
+            log(`接收到的files参数: ${files}`, 'info');
+            log(`files类型: ${Object.prototype.toString.call(files)}`, 'info');
+            log(`files是否为null/undefined: ${files == null}`, 'info');
+            
+            if (!files) {
+                const errorMsg = '没有接收到文件参数（files为null或undefined）';
+                log(`❌ ${errorMsg}`, 'error');
+                return;
+            }
+            
+            log(`开始分析文件: ${files.length}`, 'info');
+            
+            // 将FileList转为数组并检查每个文件
+            let fileArray;
+            try {
+                fileArray = Array.from(files);
+                log(`转换后的文件数组: ${fileArray.length}`, 'success');
+            } catch (error) {
+                log(`❌ 文件数组转换失败: ${error}`, 'error');
+                return;
+            }
+            
+            if (fileArray.length === 0) {
+                const errorMsg = '文件数组为空，没有可分析的文件';
+                log(`❌ ${errorMsg}`, 'error');
+                return;
+            }
+
+            fileArray.forEach((file, index) => {
+                log(`文件 ${index + 1}: ${file.name} (${file.type}, ${file.size} 字节)`, 'info');
+            });
+            
+            // 文件类型检测
+            const validFiles = fileArray.filter(file => {
+                const hasValidExtension = file.name.toLowerCase().endsWith('.txt');
+                log(`文件 ${file.name} 验证结果: ${hasValidExtension ? '有效' : '无效'}`, hasValidExtension ? 'success' : 'error');
+                return hasValidExtension;
+            });
+
+            log(`有效文件数量: ${validFiles.length}`, 'info');
+
+            if (validFiles.length === 0) {
+                const errorMsg = `没有找到有效的txt文件。
+请确保：
+1. 文件扩展名为.txt
+2. 文件包含有效的JSON数据
+
+调试信息：
+- 总文件数：${fileArray.length}
+- 有效文件数：${validFiles.length}`;
+                log(`❌ ${errorMsg}`, 'error');
+                return;
+            }
+
+            log(`✅ 文件上传流程测试成功！发现 ${validFiles.length} 个有效文件`, 'success');
+        }
+
+        // 手动测试函数
+        function testFileUploadFlow() {
+            log('=== 开始手动测试文件上传流程 ===', 'info');
+            
+            // 创建模拟文件对象
+            const mockFile = new File(['{"test": "data"}'], '张三_测评报告.txt', {
+                type: 'text/plain',
+                lastModified: Date.now()
+            });
+
+            const mockFileList = [mockFile];
+            // 模拟FileList的长度属性
+            Object.defineProperty(mockFileList, 'length', {
+                value: 1,
+                writable: false
+            });
+
+            log('创建模拟文件对象完成', 'success');
+            log(`模拟文件: ${mockFile.name} (${mockFile.size} 字节, ${mockFile.type})`, 'info');
+
+            // 测试handleFiles
+            handleFiles(mockFileList);
+            
+            // 等待一秒后测试分析
+            setTimeout(() => {
+                log('现在测试分析函数...', 'info');
+                testAnalyzeFiles(mockFileList);
+            }, 1000);
+        }
+
+        function simulateFileSelection() {
+            log('=== 模拟文件选择 ===', 'info');
+            
+            // 创建多个模拟文件
+            const files = [
+                new File(['{"employeeName": "张三", "report": {}}'], '张三_测评报告.txt', { type: 'text/plain' }),
+                new File(['{"employeeName": "李四", "report": {}}'], '李四_测评报告.txt', { type: 'text/plain' }),
+                new File(['invalid data'], '无效文件.doc', { type: 'application/msword' })
+            ];
+
+            // 模拟FileList
+            Object.defineProperty(files, 'length', { value: files.length, writable: false });
+
+            log(`创建了 ${files.length} 个模拟文件`, 'info');
+            
+            // 直接调用handleFiles进行测试
+            handleFiles(files);
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            currentSelectedFiles = null;
+            document.getElementById('file-list').style.display = 'none';
+            log('结果已清空', 'info');
+        }
+
+        // 页面加载时初始化
+        window.addEventListener('load', () => {
+            log('🔧 文件上传流程测试页面已加载', 'success');
+            initializeFileUpload();
+            log('可以拖拽文件、点击选择文件，或使用测试按钮进行测试', 'info');
+        });
+    </script>
+</body>
+</html>
